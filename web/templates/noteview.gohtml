@@ -1,0 +1,35 @@
+{{define "noteview.gohtml"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{.Title}} - Blindsidian</title>
+  <script src="https://unpkg.com/htmx.org@1.11.1"></script>
+</head>
+<body>
+  <header>
+    <h1>{{.Title}}</h1>
+    <p><a href="/notes">Back to notes</a></p>
+  </header>
+  <main>
+    {{template "note_view_fragment" .}}
+  </main>
+  <script>
+    document.body.addEventListener('htmx:afterSwap', function(event) {
+      if (event.detail.target && event.detail.target.id === 'note-region') {
+        var textarea = document.getElementById('note-content-textarea');
+        if (textarea) {
+          textarea.focus();
+          return;
+        }
+        var editButton = document.getElementById('edit-note-btn');
+        if (editButton) {
+          editButton.focus();
+        }
+      }
+    });
+  </script>
+</body>
+</html>
+{{end}}

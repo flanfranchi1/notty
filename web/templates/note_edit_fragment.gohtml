@@ -1,0 +1,21 @@
+{{define "note_edit_fragment"}}
+<div id="note-region" aria-live="polite" aria-labelledby="note-title">
+  <div class="sr-only" id="edit-status" aria-live="assertive">Editing mode</div>
+  <header>
+    <h2 id="note-title">Editing {{.Title}}</h2>
+  </header>
+  <form hx-post="/notes/view/update" hx-target="#note-region" hx-swap="outerHTML">
+    <input type="hidden" name="original_title" value="{{.Title}}">
+    <div>
+      <label for="edit-title">Title</label>
+      <input id="edit-title" name="title" value="{{.Title}}" required>
+    </div>
+    <div>
+      <label for="note-content-textarea">Note content in Markdown</label>
+      <textarea id="note-content-textarea" name="content" rows="10" required autofocus>{{.Raw}}</textarea>
+    </div>
+    <button type="submit">Save</button>
+    <button type="button" hx-get="/notes/view?title={{urlquery .Title}}" hx-target="#note-region" hx-swap="outerHTML">Cancel</button>
+  </form>
+</div>
+{{end}}

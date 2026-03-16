@@ -1,0 +1,63 @@
+{{define "notes.gohtml"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Notes - Blindsidian</title>
+  <script src="https://unpkg.com/htmx.org@1.11.1"></script>
+</head>
+<body>
+  <header>
+    <h1>Your Notes</h1>
+    <p><a href="/logout">Logout</a></p>
+    <form method="get" action="/search" hx-get="/search" hx-trigger="keyup changed delay:300ms" hx-target="#search-results" hx-swap="innerHTML">
+      <label for="search-box">Search notes (Alt+S)</label>
+      <input id="search-box" type="search" name="q" accesskey="s" aria-label="Search notes" />
+    </form>
+    <div aria-live="polite" id="search-results"></div>
+  </header>
+  <main>
+    <section>
+      <h2>Create a note</h2>
+      <div aria-live="polite" id="save-region">{{if .Message}}{{.Message}}{{end}}</div>
+      <form method="post" action="/notes/create" hx-post="/notes/create" hx-swap="outerHTML" hx-target="#notes-app">
+        <div>
+          <label for="title">Title</label>
+          <input id="title" name="title" type="text" value="{{.CreateTitle}}" required>
+        </div>
+        <div>
+          <label for="content">Note content in Markdown</label>
+          <textarea id="content" name="content" rows="5" required></textarea>
+        </div>
+        <button type="submit">Save note</button>
+      </form>
+    </section>
+    <section id="notes-app">
+      <h2>Recent notes</h2>
+      {{if not .Notes}}
+        <p>No notes yet.</p>
+      {{else}}
+        <ul>
+          {{range .Notes}}
+            <li id="note-{{.ID}}">
+              <article>
+                <h3><a href="/notes/view?title={{urlquery .Title}}">{{.Title}}</a></h3>
+                <p><small>Last update: {{.UpdatedAt}}</small></p>
+                <div id="note-view-{{.ID}}">{{.RenderedHTML}}</div>
+                <div>
+                  <button hx-get="/notes/{{.ID}}/edit" hx-target="#note-{{.ID}}" hx-swap="outerHTML" type="button" accesskey="e">Edit</button>
+                  <form method="post" action="/notes/{{.ID}}/delete" style="display:inline;" hx-post="/notes/{{.ID}}/delete" hx-confirm="Are you sure you want to delete this note?" hx-target="closest li" hx-swap="outerHTML swap:1s">
+                    <button type="submit" aria-label="Delete note: {{.Title}}">Delete</button>
+                  </form>
+                </div>
+              </article>
+            </li>
+          {{end}}
+        </ul>
+      {{end}}
+    </section>
+  </main>
+</body>
+</html>
+{{end}}

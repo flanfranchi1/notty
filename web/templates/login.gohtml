@@ -1,0 +1,35 @@
+{{define "login.gohtml"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Login - Blindsidian</title>
+</head>
+<body>
+  <header>
+    <h1>Login</h1>
+    <p>Access your notes.</p>
+  </header>
+  <main>
+    <section>
+      <form method="post" action="/login" novalidate>
+        <div aria-atomic="true">
+          {{if .Error}}<p role="status" style="color:red;">{{.Error}}</p>{{end}}
+        </div>
+        <div>
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" required>
+        </div>
+        <div>
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" required>
+        </div>
+        <button type="submit">Log in</button>
+      </form>
+    </section>
+    <p>Need an account? <a href="/signup">Sign up</a></p>
+  </main>
+</body>
+</html>
+{{end}}
