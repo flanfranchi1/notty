@@ -329,24 +329,7 @@ func noteActionHandler(mgr *database.DatabaseManager, sessions *SessionStore) ht
 			}
 
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			_, _ = w.Write([]byte(fmt.Sprintf(`
-<div>
-  <form method="post" action="/notes/%s/update" hx-post="/notes/%s/update" hx-swap="outerHTML" hx-target="#note-%s">
-    <div>
-      <label for="title-%s">Title</label>
-      <input id="title-%s" name="title" value="%s" required>
-    </div>
-    <div>
-      <label for="content-%s">Note content in Markdown</label>
-      <textarea id="content-%s" name="content" rows="5" required>%s</textarea>
-    </div>
-    <button type="submit">Save</button>
-    <button type="button" hx-get="/notes" hx-target="body" hx-swap="outerHTML">Back to View</button>
-  </form>
-  <h4>Preview</h4>
-  <div>%s</div>
-</div>
-`, noteID, noteID, noteID, noteID, noteID, html.EscapeString(note.Title), noteID, noteID, html.EscapeString(note.Content), htmlContent)))
+			templates.ExecuteTemplate(w, "note_action_edit_fragment", map[string]interface{}{"ID": note.ID, "Title": note.Title, "Content": note.Content, "RenderedHTML": template.HTML(htmlContent)})
 		case "update":
 			if r.Method != http.MethodPost {
 				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -582,9 +565,10 @@ func searchHandler(mgr *database.DatabaseManager, sessions *SessionStore) http.H
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		if len(notes) == 0 {
-			w.Write([]byte("<p>No matches found.</p>"))
+			w.Write([]byte("<p role=\"status\">No matches found.</p>"))
 			return
 		}
+		w.Write([]byte(fmt.Sprintf("<p role=\"status\">Found %d results.</p>", len(notes))))
 		w.Write([]byte("<ul>"))
 		for _, n := range notes {
 			w.Write([]byte(fmt.Sprintf("<li><a href=\"/notes/view?title=%s\">%s</a></li>", url.QueryEscape(n.Title), html.EscapeString(n.Title))))

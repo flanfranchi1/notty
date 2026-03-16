@@ -3,24 +3,30 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Notes - Blindsidian</title>
   <script src="https://unpkg.com/htmx.org@1.11.1"></script>
 </head>
 <body>
+  <a class="skip-link" href="#main-content" style="position:absolute;left:-999px;top:auto;">Skip to main content</a>
   <header>
-    <h1>Your Notes</h1>
-    <p><a href="/logout">Logout</a></p>
-    <form method="get" action="/search" hx-get="/search" hx-trigger="keyup changed delay:300ms" hx-target="#search-results" hx-swap="innerHTML">
-      <label for="search-box">Search notes (Alt+S)</label>
-      <input id="search-box" type="search" name="q" accesskey="s" aria-label="Search notes" />
-    </form>
-    <div aria-live="polite" id="search-results"></div>
+    <h1>Blindsidian</h1>
+    <nav>
+      <a href="/notes">Notes</a> | <a href="/logout">Logout</a>
+    </nav>
   </header>
-  <main>
+  <div id="system-status" role="status" aria-live="polite">{{if .Message}}{{.Message}}{{end}}</div>
+  <main id="main-content">
+    <section>
+      <h2>Notes</h2>
+      <form method="get" action="/search" hx-get="/search" hx-trigger="keyup changed delay:300ms" hx-target="#search-results" hx-swap="innerHTML">
+        <label for="search-box">Search notes (Alt+S)</label>
+        <input id="search-box" type="search" name="q" accesskey="s" aria-label="Search notes" />
+      </form>
+      <div id="search-results" role="status" aria-live="polite">Start typing to search notes...</div>
+    </section>
     <section>
       <h2>Create a note</h2>
-      <div aria-live="polite" id="save-region">{{if .Message}}{{.Message}}{{end}}</div>
       <form method="post" action="/notes/create" hx-post="/notes/create" hx-swap="outerHTML" hx-target="#notes-app">
         <div>
           <label for="title">Title</label>
@@ -40,16 +46,14 @@
       {{else}}
         <ul>
           {{range .Notes}}
-            <li id="note-{{.ID}}">
+            <li id="note-item-{{.ID}}">
               <article>
                 <h3><a href="/notes/view?title={{urlquery .Title}}">{{.Title}}</a></h3>
                 <p><small>Last update: {{.UpdatedAt}}</small></p>
                 <div id="note-view-{{.ID}}">{{.RenderedHTML}}</div>
                 <div>
-                  <button hx-get="/notes/{{.ID}}/edit" hx-target="#note-{{.ID}}" hx-swap="outerHTML" type="button" accesskey="e">Edit</button>
-                  <form method="post" action="/notes/{{.ID}}/delete" style="display:inline;" hx-post="/notes/{{.ID}}/delete" hx-confirm="Are you sure you want to delete this note?" hx-target="closest li" hx-swap="outerHTML swap:1s">
-                    <button type="submit" aria-label="Delete note: {{.Title}}">Delete</button>
-                  </form>
+                  <button hx-get="/notes/{{.ID}}/edit" hx-target="#note-item-{{.ID}}" hx-swap="outerHTML" aria-label="Edit note: {{.Title}}">Edit</button>
+                  <button hx-post="/notes/{{.ID}}/delete" hx-confirm="Confirm delete?" hx-target="closest li" aria-label="Delete note: {{.Title}}">Delete</button>
                 </div>
               </article>
             </li>

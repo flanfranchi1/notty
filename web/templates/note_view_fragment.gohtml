@@ -8,7 +8,7 @@
     {{.Body}}
   </article>
   <div>
-    <button id="edit-note-btn" type="button" accesskey="e" aria-controls="note-display-area" hx-get="/notes/view/edit?title={{urlquery .Title}}" hx-target="#note-display-area" hx-swap="outerHTML">Edit Note</button>
+    <button id="edit-note-btn" type="button" accesskey="e" aria-controls="note-display-area" hx-get="/notes/view/edit?title={{urlquery .Title}}" hx-target="#main-content" hx-swap="outerHTML" aria-label="Edit note: {{.Title}}">Edit Note</button>
     <a href="/notes">Back to notes</a>
   </div>
 </div>

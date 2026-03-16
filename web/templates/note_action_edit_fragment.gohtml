@@ -1,0 +1,19 @@
+{{define "note_action_edit_fragment"}}
+<div id="note-item-{{.ID}}">
+  <form method="post" action="/notes/{{.ID}}/update" hx-post="/notes/{{.ID}}/update" hx-target="#note-item-{{.ID}}" hx-swap="outerHTML">
+    <input type="hidden" name="original_title" value="{{.Title}}">
+    <div>
+      <label for="title-{{.ID}}">Title</label>
+      <input id="title-{{.ID}}" name="title" value="{{.Title}}" required>
+    </div>
+    <div>
+      <label for="content-{{.ID}}">Note content in Markdown</label>
+      <textarea id="content-{{.ID}}" name="content" rows="5" required>{{.Content}}</textarea>
+    </div>
+    <button type="submit">Save</button>
+    <button type="button" hx-get="/notes" hx-target="#main-content" hx-swap="outerHTML">Cancel</button>
+  </form>
+  <h4>Preview</h4>
+  <div>{{.RenderedHTML}}</div>
+</div>
+{{end}}

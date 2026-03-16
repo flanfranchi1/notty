@@ -3,21 +3,22 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{.Title}} - Blindsidian</title>
   <script src="https://unpkg.com/htmx.org@1.11.1"></script>
 </head>
 <body>
+  <a class="skip-link" href="#main-content" style="position:absolute;left:-999px;top:auto;">Skip to main content</a>
   <header>
     <h1>{{.Title}}</h1>
     <p><a href="/notes">Back to notes</a></p>
   </header>
-  <main>
+  <main id="main-content">
     {{template "note_view_fragment" .}}
   </main>
   <script>
     document.body.addEventListener('htmx:afterSwap', function(event) {
-      if (event.detail.target && event.detail.target.id === 'note-region') {
+      if (event.detail.target && event.detail.target.id === 'main-content') {
         var textarea = document.getElementById('note-content-textarea');
         if (textarea) {
           textarea.focus();
