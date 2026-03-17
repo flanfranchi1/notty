@@ -76,7 +76,7 @@
             // O setTimeout de 100ms separa a atualização do DOM do evento de foco.
             // Isso é vital para que o Orca/NVDA não engula o anúncio da região aria-live.
             setTimeout(function() {
-                var textarea = document.querySelector('textarea[name="content"]');
+                var textarea = document.querySelector('textarea[name="content"]:not(#content)');
                 var sysMsg = document.getElementById('system-messages');
 
                 if (textarea) {

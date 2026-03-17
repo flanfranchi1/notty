@@ -315,8 +315,17 @@ func noteActionHandler(mgr *database.DatabaseManager, sessions *SessionStore) ht
 				return
 			}
 
+			// Ensure the template gets the keys it expects for data binding.
+			// The list edit fragment uses {{.Content}} and the full-page edit uses {{.Raw}}.
+			type editData struct {
+				ID      string
+				Title   string
+				Content string
+				Raw     string
+			}
+
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			templates.ExecuteTemplate(w, "note_item_edit_fragment", map[string]interface{}{"ID": note.ID, "Title": note.Title, "Content": note.Content, "Raw": note.Content})
+			templates.ExecuteTemplate(w, "note_item_edit_fragment", editData{ID: note.ID, Title: note.Title, Content: note.Content, Raw: note.Content})
 		case "update":
 			if r.Method != http.MethodPost {
 				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -476,8 +485,18 @@ func viewNoteEditHandler(mgr *database.DatabaseManager, sessions *SessionStore) 
 			return
 		}
 
+		// Use a struct to ensure the edit fragment gets the keys it expects.
+		// The template relies on {{.Title}} and {{.Raw}} for the textarea content.
+		data := struct {
+			Title string
+			Raw   string
+		}{
+			Title: note.Title,
+			Raw:   note.Content,
+		}
+
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		templates.ExecuteTemplate(w, "note_edit_fragment", map[string]interface{}{"Title": note.Title, "Raw": note.Content})
+		templates.ExecuteTemplate(w, "note_edit_fragment", data)
 	}
 }
 
