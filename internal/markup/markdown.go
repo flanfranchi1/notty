@@ -29,6 +29,26 @@ func ParseWikiLinks(content string) []string {
 	return titles
 }
 
+var tagRegex = regexp.MustCompile(`#([a-zA-Z0-9_]+)`)
+
+func ParseTags(content string) []string {
+	matches := tagRegex.FindAllStringSubmatch(content, -1)
+	tagSet := make(map[string]bool)
+	for _, match := range matches {
+		if len(match) > 1 {
+			tag := strings.ToLower(strings.TrimSpace(match[1]))
+			if tag != "" {
+				tagSet[tag] = true
+			}
+		}
+	}
+	tags := make([]string, 0, len(tagSet))
+	for tag := range tagSet {
+		tags = append(tags, tag)
+	}
+	return tags
+}
+
 func RenderMarkdownToHTML(raw string) (string, error) {
 	return RenderMarkdownWithWikiLinks(raw, nil)
 }

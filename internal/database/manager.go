@@ -259,6 +259,31 @@ func (m *DatabaseManager) InsertNoteLinks(db *sql.DB, sourceID string, targetIDs
 	return nil
 }
 
+func (m *DatabaseManager) InsertNoteTags(db *sql.DB, noteID string, tags []string) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("unable to begin insert tags transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if _, err = tx.Exec(`DELETE FROM note_tags WHERE note_id = ?;`, noteID); err != nil {
+		return fmt.Errorf("unable to delete existing tags: %w", err)
+	}
+	for _, tag := range tags {
+		if _, err = tx.Exec(`INSERT OR IGNORE INTO note_tags (note_id, tag) VALUES (?, ?);`, noteID, tag); err != nil {
+			return fmt.Errorf("unable to insert note tag: %w", err)
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("unable to commit insert tags: %w", err)
+	}
+	return nil
+}
+
 func (m *DatabaseManager) DeleteNoteLinks(db *sql.DB, sourceID string) error {
 	_, err := db.Exec(`DELETE FROM note_links WHERE source_id = ?;`, sourceID)
 	if err != nil {
@@ -310,6 +335,11 @@ func (m *DatabaseManager) ensureUserSchema(db *sql.DB) error {
 	createNotebooksTable := `CREATE TABLE IF NOT EXISTS notebooks (id TEXT PRIMARY KEY, name TEXT NOT NULL COLLATE NOCASE, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);`
 	if _, err := db.Exec(createNotebooksTable); err != nil {
 		return fmt.Errorf("unable to ensure notebooks table: %w", err)
+	}
+
+	createNoteTagsTable := `CREATE TABLE IF NOT EXISTS note_tags (note_id TEXT, tag TEXT, UNIQUE(note_id, tag));`
+	if _, err := db.Exec(createNoteTagsTable); err != nil {
+		return fmt.Errorf("unable to ensure note_tags table: %w", err)
 	}
 
 	alterNotesTable := `PRAGMA table_info(notes);`

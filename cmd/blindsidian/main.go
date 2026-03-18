@@ -357,6 +357,9 @@ func createNoteHandler(mgr *database.DatabaseManager, sessions *SessionStore) ht
 		}
 		mgr.InsertNoteLinks(db, note.ID, targetIDs)
 
+		tags := markup.ParseTags(note.Content)
+		mgr.InsertNoteTags(db, note.ID, tags)
+
 		http.Redirect(w, r, "/notes?msg=Note+saved", http.StatusSeeOther)
 	}
 }
@@ -490,6 +493,9 @@ func noteActionHandler(mgr *database.DatabaseManager, sessions *SessionStore) ht
 			}
 			mgr.DeleteNoteLinks(db, noteID)
 			mgr.InsertNoteLinks(db, noteID, targetIDs)
+
+			tags := markup.ParseTags(content)
+			mgr.InsertNoteTags(db, noteID, tags)
 
 			note, err := mgr.GetNoteByID(db, noteID)
 			if err != nil || note == nil {
@@ -778,6 +784,9 @@ func viewNoteUpdateHandler(mgr *database.DatabaseManager, sessions *SessionStore
 		}
 		mgr.DeleteNoteLinks(db, note.ID)
 		mgr.InsertNoteLinks(db, note.ID, targetIDs)
+
+		tags := markup.ParseTags(content)
+		mgr.InsertNoteTags(db, note.ID, tags)
 
 		if err := renderNoteViewFragment(w, note, mgr, db); err != nil {
 			http.Error(w, "unable to render updated note", http.StatusInternalServerError)
