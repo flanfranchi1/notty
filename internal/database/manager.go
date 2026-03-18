@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	_ "modernc.org/sqlite"
 )
+
+var ftsSanitizeRegexp = regexp.MustCompile(`[^\p{L}\p{N}\s]+`)
 
 type DatabaseManager struct {
 	SystemDBPath string
@@ -111,9 +114,6 @@ func (m *DatabaseManager) CreateNote(db *sql.DB, note Note) error {
 	if _, err = tx.Exec(insert, note.ID, note.Title, note.Content, note.NotebookID); err != nil {
 		return fmt.Errorf("unable to create note: %w", err)
 	}
-	if _, err = tx.Exec(`INSERT INTO notes_fts (id, title, content) VALUES (?, ?, ?);`, note.ID, note.Title, note.Content); err != nil {
-		return fmt.Errorf("unable to index note in FTS: %w", err)
-	}
 	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("unable to commit create note: %w", err)
 	}
@@ -166,11 +166,17 @@ func (m *DatabaseManager) GetNoteByTitle(db *sql.DB, title string) (*Note, error
 }
 
 func (m *DatabaseManager) SearchNotes(db *sql.DB, queryText string) ([]Note, error) {
-	if strings.TrimSpace(queryText) == "" {
+	clean := strings.TrimSpace(ftsSanitizeRegexp.ReplaceAllString(queryText, " "))
+	if clean == "" {
 		return []Note{}, nil
 	}
-	ftsQuery := fmt.Sprintf("%s*", queryText)
-	rows, err := db.Query(`SELECT id, title, content, updated_at FROM notes_fts WHERE notes_fts MATCH ? LIMIT 50;`, ftsQuery)
+	terms := strings.Fields(clean)
+	for i := range terms {
+		terms[i] = terms[i] + "*"
+	}
+	ftsQuery := strings.Join(terms, " ")
+
+	rows, err := db.Query(`SELECT n.id, n.title, n.content, n.updated_at FROM notes n JOIN notes_fts f ON n.id = f.id WHERE f.notes_fts MATCH ? LIMIT 50;`, ftsQuery)
 	if err != nil {
 		return nil, fmt.Errorf("unable to search notes: %w", err)
 	}
@@ -202,12 +208,6 @@ func (m *DatabaseManager) UpdateNote(db *sql.DB, note Note) error {
 	if _, err = tx.Exec(update, note.Title, note.Content, note.NotebookID, note.ID); err != nil {
 		return fmt.Errorf("unable to update note: %w", err)
 	}
-	if _, err = tx.Exec(`DELETE FROM notes_fts WHERE id = ?;`, note.ID); err != nil {
-		return fmt.Errorf("unable to delete old fts row: %w", err)
-	}
-	if _, err = tx.Exec(`INSERT INTO notes_fts (id, title, content) VALUES (?, ?, ?);`, note.ID, note.Title, note.Content); err != nil {
-		return fmt.Errorf("unable to update fts row: %w", err)
-	}
 	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("unable to commit update note: %w", err)
 	}
@@ -227,9 +227,6 @@ func (m *DatabaseManager) DeleteNote(db *sql.DB, noteID string) error {
 
 	if _, err = tx.Exec(`DELETE FROM notes WHERE id = ?;`, noteID); err != nil {
 		return fmt.Errorf("unable to delete note: %w", err)
-	}
-	if _, err = tx.Exec(`DELETE FROM notes_fts WHERE id = ?;`, noteID); err != nil {
-		return fmt.Errorf("unable to delete fts note: %w", err)
 	}
 	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("unable to commit delete note: %w", err)
@@ -342,6 +339,31 @@ func (m *DatabaseManager) ensureUserSchema(db *sql.DB) error {
 		return fmt.Errorf("unable to ensure note_tags table: %w", err)
 	}
 
+	noteTagsCleanupTrigger := `CREATE TRIGGER IF NOT EXISTS notes_tag_cleanup AFTER DELETE ON notes BEGIN DELETE FROM note_tags WHERE note_id = old.id; END;`
+	if _, err := db.Exec(noteTagsCleanupTrigger); err != nil {
+		return fmt.Errorf("unable to create note tags cleanup trigger: %w", err)
+	}
+
+	ftsInsertTrigger := `CREATE TRIGGER IF NOT EXISTS notes_fts_insert AFTER INSERT ON notes BEGIN INSERT INTO notes_fts(id, title, content) VALUES (new.id, new.title, new.content); END;`
+	if _, err := db.Exec(ftsInsertTrigger); err != nil {
+		return fmt.Errorf("unable to create fts insert trigger: %w", err)
+	}
+
+	ftsDeleteTrigger := `CREATE TRIGGER IF NOT EXISTS notes_fts_delete AFTER DELETE ON notes BEGIN DELETE FROM notes_fts WHERE id = old.id; END;`
+	if _, err := db.Exec(ftsDeleteTrigger); err != nil {
+		return fmt.Errorf("unable to create fts delete trigger: %w", err)
+	}
+
+	ftsUpdateTrigger := `CREATE TRIGGER IF NOT EXISTS notes_fts_update AFTER UPDATE ON notes BEGIN UPDATE notes_fts SET title = new.title, content = new.content WHERE id = new.id; END;`
+	if _, err := db.Exec(ftsUpdateTrigger); err != nil {
+		return fmt.Errorf("unable to create fts update trigger: %w", err)
+	}
+
+	populateFTS := `INSERT OR IGNORE INTO notes_fts(id, title, content) SELECT id, title, content FROM notes;`
+	if _, err := db.Exec(populateFTS); err != nil {
+		return fmt.Errorf("unable to populate fts: %w", err)
+	}
+
 	alterNotesTable := `PRAGMA table_info(notes);`
 	rows, err := db.Query(alterNotesTable)
 	if err == nil {
@@ -368,6 +390,11 @@ func (m *DatabaseManager) ensureUserSchema(db *sql.DB) error {
 	indexSQL := `CREATE INDEX IF NOT EXISTS idx_notes_notebook_id ON notes(notebook_id);`
 	if _, err := db.Exec(indexSQL); err != nil {
 		return fmt.Errorf("unable to create notebook_id index: %w", err)
+	}
+
+	tagIndexSQL := `CREATE INDEX IF NOT EXISTS idx_note_tags_tag ON note_tags(tag);`
+	if _, err := db.Exec(tagIndexSQL); err != nil {
+		return fmt.Errorf("unable to create tag index: %w", err)
 	}
 
 	return nil
