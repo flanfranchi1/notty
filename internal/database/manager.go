@@ -230,6 +230,55 @@ func (m *DatabaseManager) DeleteNote(db *sql.DB, noteID string) error {
 	return nil
 }
 
+func (m *DatabaseManager) InsertNoteLinks(db *sql.DB, sourceID string, targetIDs []string) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("unable to begin insert links transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	for _, targetID := range targetIDs {
+		if _, err = tx.Exec(`INSERT OR IGNORE INTO note_links (source_id, target_id) VALUES (?, ?);`, sourceID, targetID); err != nil {
+			return fmt.Errorf("unable to insert note link: %w", err)
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("unable to commit insert links: %w", err)
+	}
+	return nil
+}
+
+func (m *DatabaseManager) DeleteNoteLinks(db *sql.DB, sourceID string) error {
+	_, err := db.Exec(`DELETE FROM note_links WHERE source_id = ?;`, sourceID)
+	if err != nil {
+		return fmt.Errorf("unable to delete note links: %w", err)
+	}
+	return nil
+}
+
+func (m *DatabaseManager) GetBacklinks(db *sql.DB, targetID string) ([]Note, error) {
+	query := `SELECT n.id, n.title, n.content, n.updated_at FROM notes n JOIN note_links l ON n.id = l.source_id WHERE l.target_id = ? ORDER BY n.updated_at DESC;`
+	rows, err := db.Query(query, targetID)
+	if err != nil {
+		return nil, fmt.Errorf("unable to query backlinks: %w", err)
+	}
+	defer rows.Close()
+
+	notes := []Note{}
+	for rows.Next() {
+		n := Note{}
+		if err := rows.Scan(&n.ID, &n.Title, &n.Content, &n.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("unable to scan backlink: %w", err)
+		}
+		notes = append(notes, n)
+	}
+	return notes, nil
+}
+
 func (m *DatabaseManager) ensureUserSchema(db *sql.DB) error {
 	createNotesTable := `CREATE TABLE IF NOT EXISTS notes (
         id TEXT PRIMARY KEY,
@@ -244,6 +293,11 @@ func (m *DatabaseManager) ensureUserSchema(db *sql.DB) error {
 	createFTSTable := `CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(id UNINDEXED, title, content);`
 	if _, err := db.Exec(createFTSTable); err != nil {
 		return fmt.Errorf("unable to ensure notes_fts table: %w", err)
+	}
+
+	createLinksTable := `CREATE TABLE IF NOT EXISTS note_links (source_id TEXT, target_id TEXT, UNIQUE(source_id, target_id));`
+	if _, err := db.Exec(createLinksTable); err != nil {
+		return fmt.Errorf("unable to ensure note_links table: %w", err)
 	}
 	return nil
 }

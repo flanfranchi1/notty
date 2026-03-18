@@ -15,11 +15,25 @@ import (
 
 var wikiLinkRegex = regexp.MustCompile(`\[\[([^\]]+)\]\]`)
 
+func ParseWikiLinks(content string) []string {
+	matches := wikiLinkRegex.FindAllStringSubmatch(content, -1)
+	titles := make([]string, 0, len(matches))
+	for _, match := range matches {
+		if len(match) > 1 {
+			title := strings.TrimSpace(match[1])
+			if title != "" {
+				titles = append(titles, title)
+			}
+		}
+	}
+	return titles
+}
+
 func RenderMarkdownToHTML(raw string) (string, error) {
 	return RenderMarkdownWithWikiLinks(raw, nil)
 }
 
-func RenderMarkdownWithWikiLinks(raw string, noteExists func(title string) (bool, error)) (string, error) {
+func RenderMarkdownWithWikiLinks(raw string, noteResolver func(title string) (id string, exists bool, err error)) (string, error) {
 	processed := wikiLinkRegex.ReplaceAllStringFunc(raw, func(value string) string {
 		sub := wikiLinkRegex.FindStringSubmatch(value)
 		if len(sub) < 2 {
@@ -29,16 +43,23 @@ func RenderMarkdownWithWikiLinks(raw string, noteExists func(title string) (bool
 		if title == "" {
 			return value
 		}
-		href := "/notes/view?title=" + url.QueryEscape(title)
 		classes := "wiki-link"
-		if noteExists != nil {
-			exists, err := noteExists(title)
-			if err == nil && !exists {
-				classes += " is-ghost"
-				href = "/notes?create=" + url.QueryEscape(title)
+		var href string
+		if noteResolver != nil {
+			id, exists, err := noteResolver(title)
+			if err != nil {
+				return value
 			}
+			if exists {
+				href = "/notes/" + id
+			} else {
+				href = "/notes?create=" + url.QueryEscape(title)
+				classes += " is-ghost"
+			}
+		} else {
+			href = "/notes/view?title=" + url.QueryEscape(title)
 		}
-		return fmt.Sprintf(`<a class="%s" href="%s">[[%s]]</a>`, classes, href, html.EscapeString(title))
+		return fmt.Sprintf(`<a class="%s" href="%s">%s</a>`, classes, href, html.EscapeString(title))
 	})
 
 	var buf bytes.Buffer

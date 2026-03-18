@@ -199,17 +199,20 @@ func notesHandler(mgr *database.DatabaseManager, sessions *SessionStore) http.Ha
 			RenderedHTML template.HTML
 		}
 
-		noteExists := func(title string) (bool, error) {
+		noteResolver := func(title string) (string, bool, error) {
 			n, err := mgr.GetNoteByTitle(db, title)
 			if err != nil {
-				return false, err
+				return "", false, err
 			}
-			return n != nil, nil
+			if n == nil {
+				return "", false, nil
+			}
+			return n.ID, true, nil
 		}
 
 		rendered := []RenderNote{}
 		for _, note := range notes {
-			htmlContent, err := markup.RenderMarkdownWithWikiLinks(note.Content, noteExists)
+			htmlContent, err := markup.RenderMarkdownWithWikiLinks(note.Content, noteResolver)
 			if err != nil {
 				http.Error(w, "unable to render markdown", http.StatusInternalServerError)
 				return
@@ -272,17 +275,20 @@ func createNoteHandler(mgr *database.DatabaseManager, sessions *SessionStore) ht
 				RenderedHTML template.HTML
 			}
 
-			noteExists := func(title string) (bool, error) {
+			noteResolver := func(title string) (string, bool, error) {
 				n, err := mgr.GetNoteByTitle(db, title)
 				if err != nil {
-					return false, err
+					return "", false, err
 				}
-				return n != nil, nil
+				if n == nil {
+					return "", false, nil
+				}
+				return n.ID, true, nil
 			}
 
 			rendered := []RenderNote{}
 			for _, note := range notes {
-				htmlContent, err := markup.RenderMarkdownWithWikiLinks(note.Content, noteExists)
+				htmlContent, err := markup.RenderMarkdownWithWikiLinks(note.Content, noteResolver)
 				if err != nil {
 					http.Error(w, "unable to render markdown", http.StatusInternalServerError)
 					return
@@ -334,6 +340,19 @@ func createNoteHandler(mgr *database.DatabaseManager, sessions *SessionStore) ht
 			return
 		}
 
+		titles := markup.ParseWikiLinks(note.Content)
+		targetIDs := []string{}
+		for _, t := range titles {
+			target, err := mgr.GetNoteByTitle(db, t)
+			if err != nil {
+				continue
+			}
+			if target != nil {
+				targetIDs = append(targetIDs, target.ID)
+			}
+		}
+		mgr.InsertNoteLinks(db, note.ID, targetIDs)
+
 		http.Redirect(w, r, "/notes?msg=Note+saved", http.StatusSeeOther)
 	}
 }
@@ -346,8 +365,45 @@ func noteActionHandler(mgr *database.DatabaseManager, sessions *SessionStore) ht
 			return
 		}
 
+		db, err := mgr.OpenUserDB(userID)
+		if err != nil {
+			http.Error(w, "unable to open user database", http.StatusInternalServerError)
+			return
+		}
+		defer db.Close()
+
 		path := strings.TrimPrefix(r.URL.Path, "/notes/")
 		parts := strings.Split(strings.Trim(path, "/"), "/")
+		if len(parts) == 1 && r.Method == http.MethodGet {
+			noteID := parts[0]
+			note, err := mgr.GetNoteByID(db, noteID)
+			if err != nil || note == nil {
+				http.Error(w, "note not found", http.StatusNotFound)
+				return
+			}
+			backlinks, err := mgr.GetBacklinks(db, noteID)
+			if err != nil {
+				http.Error(w, "unable to get backlinks", http.StatusInternalServerError)
+				return
+			}
+			noteResolver := func(title string) (string, bool, error) {
+				n, err := mgr.GetNoteByTitle(db, title)
+				if err != nil {
+					return "", false, err
+				}
+				if n == nil {
+					return "", false, nil
+				}
+				return n.ID, true, nil
+			}
+			htmlContent, err := markup.RenderMarkdownWithWikiLinks(note.Content, noteResolver)
+			if err != nil {
+				http.Error(w, "unable to render markdown", http.StatusInternalServerError)
+				return
+			}
+			renderTemplate(w, "noteview.gohtml", map[string]interface{}{"Title": note.Title, "Body": template.HTML(htmlContent), "Backlinks": backlinks, "ID": note.ID})
+			return
+		}
 		if len(parts) < 2 {
 			http.Error(w, "not found", http.StatusNotFound)
 			return
@@ -355,13 +411,6 @@ func noteActionHandler(mgr *database.DatabaseManager, sessions *SessionStore) ht
 
 		noteID := parts[0]
 		action := parts[1]
-
-		db, err := mgr.OpenUserDB(userID)
-		if err != nil {
-			http.Error(w, "unable to open user database", http.StatusInternalServerError)
-			return
-		}
-		defer db.Close()
 
 		switch action {
 		case "edit":
@@ -409,19 +458,37 @@ func noteActionHandler(mgr *database.DatabaseManager, sessions *SessionStore) ht
 				http.Error(w, "unable to update note", http.StatusInternalServerError)
 				return
 			}
+
+			titles := markup.ParseWikiLinks(content)
+			targetIDs := []string{}
+			for _, t := range titles {
+				target, err := mgr.GetNoteByTitle(db, t)
+				if err != nil {
+					continue
+				}
+				if target != nil {
+					targetIDs = append(targetIDs, target.ID)
+				}
+			}
+			mgr.DeleteNoteLinks(db, noteID)
+			mgr.InsertNoteLinks(db, noteID, targetIDs)
+
 			note, err := mgr.GetNoteByID(db, noteID)
 			if err != nil || note == nil {
 				http.Error(w, "note not found after update", http.StatusInternalServerError)
 				return
 			}
-			noteExists := func(title string) (bool, error) {
+			noteResolver := func(title string) (string, bool, error) {
 				n, err := mgr.GetNoteByTitle(db, title)
 				if err != nil {
-					return false, err
+					return "", false, err
 				}
-				return n != nil, nil
+				if n == nil {
+					return "", false, nil
+				}
+				return n.ID, true, nil
 			}
-			htmlContent, err := markup.RenderMarkdownWithWikiLinks(note.Content, noteExists)
+			htmlContent, err := markup.RenderMarkdownWithWikiLinks(note.Content, noteResolver)
 			if err != nil {
 				http.Error(w, "unable to render markdown", http.StatusInternalServerError)
 				return
@@ -453,19 +520,26 @@ func isHTMXRequest(r *http.Request) bool {
 }
 
 func renderNoteViewFragment(w http.ResponseWriter, note *database.Note, mgr *database.DatabaseManager, db *sql.DB) error {
-	noteExists := func(title string) (bool, error) {
+	noteResolver := func(title string) (string, bool, error) {
 		n, err := mgr.GetNoteByTitle(db, title)
 		if err != nil {
-			return false, err
+			return "", false, err
 		}
-		return n != nil, nil
+		if n == nil {
+			return "", false, nil
+		}
+		return n.ID, true, nil
 	}
-	htmlContent, err := markup.RenderMarkdownWithWikiLinks(note.Content, noteExists)
+	htmlContent, err := markup.RenderMarkdownWithWikiLinks(note.Content, noteResolver)
+	if err != nil {
+		return err
+	}
+	backlinks, err := mgr.GetBacklinks(db, note.ID)
 	if err != nil {
 		return err
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	return templates.ExecuteTemplate(w, "note_view_fragment", map[string]interface{}{"Title": note.Title, "Body": template.HTML(htmlContent)})
+	return templates.ExecuteTemplate(w, "note_view_fragment", map[string]interface{}{"Title": note.Title, "Body": template.HTML(htmlContent), "Backlinks": backlinks, "ID": note.ID})
 }
 
 func viewNoteHandler(mgr *database.DatabaseManager, sessions *SessionStore) http.HandlerFunc {
@@ -506,19 +580,27 @@ func viewNoteHandler(mgr *database.DatabaseManager, sessions *SessionStore) http
 			return
 		}
 
-		noteExists := func(title string) (bool, error) {
+		noteResolver := func(title string) (string, bool, error) {
 			n, err := mgr.GetNoteByTitle(db, title)
 			if err != nil {
-				return false, err
+				return "", false, err
 			}
-			return n != nil, nil
+			if n == nil {
+				return "", false, nil
+			}
+			return n.ID, true, nil
 		}
-		htmlContent, err := markup.RenderMarkdownWithWikiLinks(note.Content, noteExists)
+		htmlContent, err := markup.RenderMarkdownWithWikiLinks(note.Content, noteResolver)
 		if err != nil {
 			http.Error(w, "unable to render markdown", http.StatusInternalServerError)
 			return
 		}
-		renderTemplate(w, "noteview.gohtml", map[string]interface{}{"Title": note.Title, "Body": template.HTML(htmlContent)})
+		backlinks, err := mgr.GetBacklinks(db, note.ID)
+		if err != nil {
+			http.Error(w, "unable to get backlinks", http.StatusInternalServerError)
+			return
+		}
+		renderTemplate(w, "noteview.gohtml", map[string]interface{}{"Title": note.Title, "Body": template.HTML(htmlContent), "Backlinks": backlinks, "ID": note.ID})
 	}
 }
 
@@ -558,9 +640,11 @@ func viewNoteEditHandler(mgr *database.DatabaseManager, sessions *SessionStore) 
 		data := struct {
 			Title string
 			Raw   string
+			ID    string
 		}{
 			Title: note.Title,
 			Raw:   note.Content,
+			ID:    note.ID,
 		}
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -640,6 +724,20 @@ func viewNoteUpdateHandler(mgr *database.DatabaseManager, sessions *SessionStore
 			http.Error(w, "unable to update note", http.StatusInternalServerError)
 			return
 		}
+
+		titles := markup.ParseWikiLinks(content)
+		targetIDs := []string{}
+		for _, t := range titles {
+			target, err := mgr.GetNoteByTitle(db, t)
+			if err != nil {
+				continue
+			}
+			if target != nil {
+				targetIDs = append(targetIDs, target.ID)
+			}
+		}
+		mgr.DeleteNoteLinks(db, note.ID)
+		mgr.InsertNoteLinks(db, note.ID, targetIDs)
 
 		if err := renderNoteViewFragment(w, note, mgr, db); err != nil {
 			http.Error(w, "unable to render updated note", http.StatusInternalServerError)

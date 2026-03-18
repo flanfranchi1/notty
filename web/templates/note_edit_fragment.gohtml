@@ -26,7 +26,7 @@
     
     <button type="submit">Save</button>
     <button type="button" 
-            hx-get="/notes/view?title={{.Title | urlquery}}" 
+            hx-get="/notes/{{.ID}}" 
             hx-target="#note-display-area" 
             hx-swap="innerHTML">
         Cancel

@@ -12,5 +12,15 @@
             aria-controls="note-display-area">
         Edit Note
     </button>
+    {{if .Backlinks}}
+    <section aria-labelledby="backlinks-heading">
+        <h3 id="backlinks-heading">Backlinks</h3>
+        <ul>
+        {{range .Backlinks}}
+            <li><a href="/notes/{{.ID}}">{{.Title}}</a></li>
+        {{end}}
+        </ul>
+    </section>
+    {{end}}
 </article>
 {{end}}
