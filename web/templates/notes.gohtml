@@ -13,6 +13,11 @@
   {{template "site-header" .}}
   {{template "status-region" .}}
 
+  {{/* ── Dialogs — rendered in the DOM but hidden until opened ── */}}
+  {{template "dialog-new-note" .}}
+  {{template "dialog-new-notebook" .}}
+  {{template "dialog-command-palette" .}}
+
   <div class="workspace">
 
     <!--
@@ -96,7 +101,9 @@
 
       <!-- ── Action buttons ── -->
       <div class="sidebar-actions">
-        <button type="button" class="btn btn-primary sidebar-btn"
+        <button id="btn-new-note"
+                type="button" class="btn btn-primary sidebar-btn"
+                data-open-dialog="dlg-new-note"
                 aria-label="{{index .T "notes.new_note"}}">
           <svg aria-hidden="true" focusable="false"
                viewBox="0 0 20 20" fill="none" width="1em" height="1em">
@@ -105,7 +112,9 @@
           </svg>
           {{index .T "notes.new_note"}}
         </button>
-        <button type="button" class="btn btn-ghost sidebar-btn"
+        <button id="btn-new-notebook"
+                type="button" class="btn btn-ghost sidebar-btn"
+                data-open-dialog="dlg-new-notebook"
                 aria-label="{{index .T "notes.new_notebook"}}">
           <svg aria-hidden="true" focusable="false"
                viewBox="0 0 20 20" fill="none" width="1em" height="1em">

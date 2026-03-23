@@ -96,5 +96,14 @@
   "note.editing_prefix": "Editando:",
   "note.cancel_editing_aria": "Cancelar edição e voltar à visualização",
   "note.editing_mode": "Modo de edição ativo.",
-  "note.view_mode": "Modo de visualização ativo."
+  "note.view_mode": "Modo de visualização ativo.",
+
+  "dialog.close": "Fechar",
+  "dialog.new_note_desc": "Preencha os campos abaixo para criar uma nova nota.",
+  "dialog.new_notebook_desc": "Digite um nome para o novo caderno.",
+
+  "cmd.palette_label": "Paleta de comandos",
+  "cmd.placeholder": "Pesquisar notas e cadernos…",
+  "cmd.results_label": "Resultados de navegação",
+  "cmd.empty": "Nenhum resultado encontrado."
 }

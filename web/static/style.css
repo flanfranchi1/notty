@@ -737,7 +737,182 @@ a:hover { color: var(--c-accent-hover); text-decoration-thickness: 2px; }
   color: var(--c-muted);
 }
 
-/* ─── 28. Print ─── */
+/* ─── 28. Native <dialog> — shared base ─── */
+/*
+   <dialog> already handles:
+     • Focus trapping while open
+     • Escape key to close
+     • inert on hidden backdrop
+   We only need to style it and its ::backdrop.
+*/
+dialog {
+  /* Override browser defaults */
+  border: none;
+  padding: 0;
+  border-radius: calc(var(--radius) * 3);
+  background: var(--c-bg);
+  color: var(--c-text);
+  box-shadow:
+    0 4px 6px -1px   color-mix(in srgb, var(--c-text) 8%,  transparent),
+    0 16px 32px -4px  color-mix(in srgb, var(--c-text) 14%, transparent);
+  max-width: min(34rem, calc(100vw - var(--s-4)));
+  width: 100%;
+}
+
+dialog::backdrop {
+  background: color-mix(in srgb, var(--c-text) 40%, transparent);
+  /* Smooth open/close; requires @starting-style for the open transition
+     (Chrome 117+).  Older browsers just show a hard cut — fully functional. */
+  backdrop-filter: blur(2px);
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--c-border);
+}
+.dialog-header h2 {
+  font-size: var(--t-lg);
+  font-weight: 700;
+  margin: 0;
+}
+
+.dialog-close {
+  /* Icon-only button — visually a × */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--c-muted);
+  font-size: var(--t-xl);
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.dialog-close:hover {
+  background: var(--c-surface);
+  color: var(--c-text);
+}
+
+.dialog-body {
+  padding: var(--s-4);
+}
+
+.dialog-footer {
+  display: flex;
+  gap: var(--s-2);
+  justify-content: flex-end;
+  padding: var(--s-3) var(--s-4);
+  border-top: 1px solid var(--c-border);
+}
+
+/* ─── 28a. Command Palette dialog ─── */
+/*
+   Overrides the shared dialog base to produce a spotlight-style panel
+   that sits near the top of the viewport.
+*/
+#cmd-palette {
+  max-width: min(40rem, calc(100vw - var(--s-4)));
+  /* Align to upper-third of viewport */
+  margin-block-start: 12vh;
+  margin-inline: auto;
+  /* Own scroll container if results overflow */
+  max-height: calc(100dvh - 12vh - var(--s-8));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cmd-palette__search {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-3);
+  border-bottom: 1px solid var(--c-border);
+  flex-shrink: 0;
+}
+
+.cmd-palette__icon {
+  color: var(--c-muted);
+  flex-shrink: 0;
+}
+
+/* The combobox input — full width, no border of its own (the row has one) */
+.cmd-palette__input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--c-text);
+  font-size: var(--t-base);
+  outline: none;
+  min-width: 0;
+}
+.cmd-palette__input::placeholder { color: var(--c-muted); }
+
+.cmd-palette__hint {
+  font-size: var(--t-xs);
+  color: var(--c-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding-inline-end: var(--s-1);
+}
+
+.cmd-palette__results {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  list-style: none;
+  padding: var(--s-1) 0;
+  margin: 0;
+}
+/* Empty state */
+.cmd-palette__results:empty::after {
+  content: attr(data-empty-msg);
+  display: block;
+  padding: var(--s-3) var(--s-4);
+  color: var(--c-muted);
+  font-size: var(--t-sm);
+}
+
+.cmd-result {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  cursor: pointer;
+  font-size: var(--t-sm);
+  border-radius: var(--radius);
+  margin-inline: var(--s-1);
+  color: var(--c-text);
+  text-decoration: none;
+  transition: background var(--dur) var(--ease);
+}
+.cmd-result:hover,
+.cmd-result[aria-selected="true"] {
+  background: var(--c-accent-dim);
+  color: var(--c-accent);
+  text-decoration: none;
+}
+
+/* Screen-reader live region for result count announcements */
+.cmd-palette__sr-announce {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+}
+
+/* ─── 28b. Print ─── */
+/* (was section 28 — renumbered to keep sections contiguous) */
+/* ─── 29. Print ─── */
 @media print {
   .site-header,
   .site-footer,

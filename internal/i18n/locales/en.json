@@ -96,5 +96,14 @@
   "note.editing_prefix": "Editing:",
   "note.cancel_editing_aria": "Cancel editing and return to view",
   "note.editing_mode": "Editing mode active.",
-  "note.view_mode": "View mode active."
+  "note.view_mode": "View mode active.",
+
+  "dialog.close": "Close",
+  "dialog.new_note_desc": "Fill in the fields below to create a new note.",
+  "dialog.new_notebook_desc": "Enter a name for the new notebook.",
+
+  "cmd.palette_label": "Command Palette",
+  "cmd.placeholder": "Search notes and notebooks…",
+  "cmd.results_label": "Navigation results",
+  "cmd.empty": "No results found."
 }

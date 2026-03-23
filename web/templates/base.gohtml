@@ -4,6 +4,7 @@
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0e0e0d">
   <link rel="stylesheet" href="/static/style.css">
   <script src="https://unpkg.com/htmx.org@1.9.10" defer></script>
+  <script src="/static/dialogs.js" defer></script>
 {{end}}
 
 {{/*
@@ -70,4 +71,175 @@
 <div id="system-status" role="status" aria-live="polite" aria-atomic="true" class="sr-only">
   {{if .Message}}{{.Message}}{{end}}
 </div>
+{{end}}
+
+{{/*
+  ── dialog-new-note
+     Opened by the "New Note" sidebar button.
+     The form posts to /notes/create.  On a successful HTMX response the
+     dialog is closed by dialogs.js and focus is returned to the trigger.
+*/}}
+{{define "dialog-new-note"}}
+<dialog id="dlg-new-note"
+        aria-labelledby="dlg-new-note-title"
+        aria-describedby="dlg-new-note-desc">
+  <div class="dialog-header">
+    <h2 id="dlg-new-note-title">{{index .T "notes.new_note"}}</h2>
+    <button type="button" class="dialog-close" data-close-dialog="dlg-new-note"
+            aria-label="{{index .T "dialog.close"}}">
+      <svg aria-hidden="true" focusable="false" viewBox="0 0 20 20" fill="none"
+           width="1em" height="1em">
+        <path d="M5 5l10 10M15 5L5 15"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+  <div class="dialog-body">
+    <p id="dlg-new-note-desc" class="sr-only">{{index .T "dialog.new_note_desc"}}</p>
+    <form id="form-new-note"
+          method="post" action="/notes/create" novalidate
+          hx-post="/notes/create"
+          hx-target="#notes-list"
+          hx-swap="afterbegin"
+          hx-on--after-request="notty.dialogs.onFormSuccess('dlg-new-note', 'btn-new-note', this)">
+      <div class="form-group">
+        <label for="dlg-note-title">{{index .T "notes.title_label"}}</label>
+        <input id="dlg-note-title" name="title" type="text"
+               required autocomplete="off"
+               aria-describedby="dlg-note-title-error">
+        <div id="dlg-note-title-error" class="form-error"
+             role="alert" aria-live="assertive"></div>
+      </div>
+      <div class="form-group">
+        <label for="dlg-note-notebook">{{index .T "notes.notebook_label"}}</label>
+        <select id="dlg-note-notebook" name="notebook_id">
+          <option value="">{{index .T "notes.none"}}</option>
+          {{range .Notebooks}}
+          <option value="{{.ID}}">{{.Name}}</option>
+          {{end}}
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="dlg-note-content">
+          {{index .T "notes.content_label"}}
+          <span class="sr-only">({{index .T "notes.markdown_hint_sr"}})</span>
+        </label>
+        <textarea id="dlg-note-content" name="content" rows="8" required
+                  class="editor-textarea"
+                  aria-describedby="dlg-note-content-error dlg-note-content-hint"></textarea>
+        <span id="dlg-note-content-hint" class="form-hint">{{index .T "notes.markdown_hint"}}</span>
+        <div id="dlg-note-content-error" class="form-error"
+             role="alert" aria-live="assertive"></div>
+      </div>
+    </form>
+  </div>
+  <div class="dialog-footer">
+    <button type="button" class="btn btn-ghost"
+            data-close-dialog="dlg-new-note">{{index .T "notes.cancel"}}</button>
+    <button type="submit" form="form-new-note"
+            class="btn btn-primary">{{index .T "notes.save"}}</button>
+  </div>
+</dialog>
+{{end}}
+
+{{/*
+  ── dialog-new-notebook
+     Opened by the "New Notebook" sidebar button.
+     Posts to /notebooks/create; on success the page refreshes the sidebar
+     notebook list via an out-of-band HTMX swap (handled server-side) or a
+     full page reload triggered by dialogs.js.
+*/}}
+{{define "dialog-new-notebook"}}
+<dialog id="dlg-new-notebook"
+        aria-labelledby="dlg-new-notebook-title"
+        aria-describedby="dlg-new-notebook-desc">
+  <div class="dialog-header">
+    <h2 id="dlg-new-notebook-title">{{index .T "notes.new_notebook"}}</h2>
+    <button type="button" class="dialog-close" data-close-dialog="dlg-new-notebook"
+            aria-label="{{index .T "dialog.close"}}">
+      <svg aria-hidden="true" focusable="false" viewBox="0 0 20 20" fill="none"
+           width="1em" height="1em">
+        <path d="M5 5l10 10M15 5L5 15"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+  <div class="dialog-body">
+    <p id="dlg-new-notebook-desc" class="sr-only">{{index .T "dialog.new_notebook_desc"}}</p>
+    <form id="form-new-notebook"
+          method="post" action="/notebooks/create" novalidate
+          hx-post="/notebooks/create"
+          hx-target="body"
+          hx-push-url="true"
+          hx-on--after-request="notty.dialogs.onFormSuccess('dlg-new-notebook', 'btn-new-notebook', this)">
+      <div class="form-group">
+        <label for="dlg-notebook-name">{{index .T "notes.notebook_name_label"}}</label>
+        <input id="dlg-notebook-name" name="name" type="text"
+               required autocomplete="off"
+               aria-describedby="dlg-notebook-name-error">
+        <div id="dlg-notebook-name-error" class="form-error"
+             role="alert" aria-live="assertive"></div>
+      </div>
+    </form>
+  </div>
+  <div class="dialog-footer">
+    <button type="button" class="btn btn-ghost"
+            data-close-dialog="dlg-new-notebook">{{index .T "notes.cancel"}}</button>
+    <button type="submit" form="form-new-notebook"
+            class="btn btn-primary">{{index .T "notes.create_notebook_btn"}}</button>
+  </div>
+</dialog>
+{{end}}
+
+{{/*
+  ── dialog-command-palette
+     Opened globally by Ctrl+K / Cmd+K.
+     Uses the ARIA combobox pattern; keyboard navigation is handled in
+     dialogs.js.  Search results are fetched from /search via HTMX.
+*/}}
+{{define "dialog-command-palette"}}
+<dialog id="cmd-palette" aria-label="{{index .T "cmd.palette_label"}}">
+  {{/* SR-only live region: announces result counts */}}
+  <div class="cmd-palette__sr-announce"
+       aria-live="polite" aria-atomic="true" id="cmd-sr-announce"></div>
+
+  <div class="cmd-palette__search">
+    {{/* Magnifier icon */}}
+    <svg class="cmd-palette__icon" aria-hidden="true" focusable="false"
+         viewBox="0 0 20 20" fill="none" width="1.125em" height="1.125em">
+      <circle cx="8.5" cy="8.5" r="5"
+              stroke="currentColor" stroke-width="1.75"/>
+      <path d="M12.5 12.5l4 4"
+            stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+    </svg>
+
+    <input id="cmd-input"
+           class="cmd-palette__input"
+           type="search"
+           autocomplete="off"
+           spellcheck="false"
+           placeholder="{{index .T "cmd.placeholder"}}"
+           role="combobox"
+           aria-controls="cmd-results"
+           aria-expanded="false"
+           aria-activedescendant=""
+           hx-get="/search"
+           hx-trigger="keyup changed delay:250ms, search"
+           hx-target="#cmd-results"
+           hx-indicator="#cmd-spinner"
+           hx-on--after-request="notty.dialogs.onCmdResults()">
+
+    <span id="cmd-spinner"
+          class="htmx-indicator cmd-palette__hint"
+          aria-hidden="true">{{index .T "notes.searching"}}</span>
+    <span class="cmd-palette__hint" aria-hidden="true">Esc {{index .T "dialog.close"}}</span>
+  </div>
+
+  <ul id="cmd-results"
+      class="cmd-palette__results"
+      role="listbox"
+      aria-label="{{index .T "cmd.results_label"}}"
+      data-empty-msg="{{index .T "cmd.empty"}}">
+  </ul>
+</dialog>
 {{end}}
