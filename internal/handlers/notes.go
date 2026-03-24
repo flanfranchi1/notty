@@ -327,7 +327,14 @@ func (s *Server) CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	tags := markup.ParseTags(note.Content)
 	s.DBManager.InsertNoteTags(db, note.ID, tags)
 
-	http.Redirect(w, r, "/notes?msg=Note+saved", http.StatusSeeOther)
+	noteURL := "/notes/view?title=" + url.QueryEscape(note.Title)
+	if s.isHTMXRequest(r) {
+		w.Header().Set("HX-Redirect", noteURL)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	http.Redirect(w, r, noteURL, http.StatusSeeOther)
 }
 
 func (s *Server) NoteActionHandler(w http.ResponseWriter, r *http.Request) {

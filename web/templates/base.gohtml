@@ -100,8 +100,6 @@
     <form id="form-new-note"
           method="post" action="/notes/create" novalidate
           hx-post="/notes/create"
-          hx-target="#notes-list"
-          hx-swap="afterbegin"
           hx-on--after-request="notty.dialogs.onFormSuccess('dlg-new-note', 'btn-new-note', this)">
       <div class="form-group">
         <label for="dlg-note-title">{{index .T "notes.title_label"}}</label>
@@ -243,4 +241,106 @@
       data-empty-msg="{{index .T "cmd.empty"}}">
   </ul>
 </dialog>
+{{end}}
+
+{{/* ── workspace-sidebar: shared authenticated workspace navigation ── */}}
+{{define "workspace-sidebar"}}
+<nav class="workspace-sidebar" aria-label="{{index .T "nav.main_label"}}">
+
+  <div class="sidebar-actions">
+    <button id="btn-new-note"
+            type="button" class="btn btn-primary sidebar-btn"
+            data-open-dialog="dlg-new-note"
+            aria-label="{{index .T "notes.new_note"}}">
+      <svg aria-hidden="true" focusable="false"
+           viewBox="0 0 20 20" fill="none" width="1em" height="1em">
+        <path d="M10 4v12M4 10h12"
+              stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      {{index .T "notes.new_note"}}
+    </button>
+    <button id="btn-new-notebook"
+            type="button" class="btn btn-ghost sidebar-btn"
+            data-open-dialog="dlg-new-notebook"
+            aria-label="{{index .T "notes.new_notebook"}}">
+      <svg aria-hidden="true" focusable="false"
+           viewBox="0 0 20 20" fill="none" width="1em" height="1em">
+        <path d="M10 4v12M4 10h12"
+              stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      {{index .T "notes.new_notebook"}}
+    </button>
+  </div>
+
+  <div class="sidebar-inbox">
+    <a href="/inbox"
+       class="sidebar-inbox-link"
+       {{if .IsInbox}}aria-current="page"{{end}}
+       aria-label="{{index .T "notes.inbox_aria"}}">
+      <svg class="sidebar-inbox-icon" aria-hidden="true" focusable="false"
+           viewBox="0 0 20 20" fill="none" width="1.1em" height="1.1em">
+        <rect x="2" y="12" width="16" height="6" rx="1"
+              stroke="currentColor" stroke-width="1.5"/>
+        <path d="M2 12l3-7h10l3 7"
+              stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M7 15.5h6"
+              stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <span class="sidebar-inbox-label">{{index .T "notes.inbox"}}</span>
+      {{if .InboxCount}}
+      <span class="inbox-badge"
+            aria-label="{{.InboxCount}} {{index .T "notes.inbox_count_aria"}}">
+        {{.InboxCount}}
+      </span>
+      {{end}}
+    </a>
+  </div>
+
+  <section class="sidebar-section" aria-labelledby="notebooks-heading">
+    <h2 class="sidebar-heading" id="notebooks-heading">{{index .T "notes.notebooks_heading"}}</h2>
+    <ul class="notebook-list" role="list">
+      <li>
+        <a href="/notes"
+           {{if and (not .IsInbox) (not .Notebook) (not .IsTagView)}}aria-current="page"{{end}}>
+          {{index .T "dashboard.heading"}}
+        </a>
+      </li>
+      {{range .Notebooks}}
+      <li class="notebook-list__item">
+        <a href="/notebooks/{{.ID}}"
+           {{if and $.Notebook (eq $.Notebook.ID .ID)}}aria-current="page"{{end}}>
+          {{.Name}}
+        </a>
+        {{if and $.Notebook (eq $.Notebook.ID .ID) $.ToCEntries}}
+        <ul class="sidebar-toc" role="list"
+            aria-label="{{index $.T "notebook.toc_heading"}}">
+          {{range $.ToCEntries}}
+          <li class="sidebar-toc__item sidebar-toc__item--h{{.Level}}">
+            <a href="#{{.ID}}">{{.Text}}</a>
+          </li>
+          {{end}}
+        </ul>
+        {{end}}
+      </li>
+      {{end}}
+    </ul>
+  </section>
+
+  {{if .AllTags}}
+  <section class="sidebar-section sidebar-tags" aria-labelledby="tags-section-heading">
+    <details {{if .IsTagView}}open{{end}}>
+      <summary class="sidebar-heading" id="tags-section-heading">{{index .T "sidebar.tags_heading"}}</summary>
+      <ul class="sidebar-tags__list" role="list">
+        {{range .AllTags}}
+        <li>
+          <a href="/tags/{{.}}"
+             {{if and $.IsTagView (eq $.ActiveTag .)}}aria-current="page"{{end}}>#{{.}}</a>
+        </li>
+        {{end}}
+      </ul>
+    </details>
+  </section>
+  {{end}}
+
+</nav>
 {{end}}

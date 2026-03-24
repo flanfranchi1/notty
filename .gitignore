@@ -23,3 +23,5 @@ TestResults.xml
 storage/
 blindsidian
 .env
+.claude/
+.playwright-cli/

@@ -114,5 +114,9 @@
   "note.tags_label": "Etiquetado como",
   "sidebar.tags_heading": "Etiquetas",
   "tags.page_title": "Notas etiquetadas",
-  "tags.empty_state": "No hay notas con esta etiqueta."
+  "tags.empty_state": "No hay notas con esta etiqueta.",
+  "dashboard.heading": "Resumen",
+  "dashboard.view_inbox": "Ver Bandeja de entrada",
+  "dashboard.your_notebooks": "Tus Cuadernos",
+  "dashboard.notebooks_empty": "Sin cuadernos aún. Crea uno con el botón de arriba."
 }

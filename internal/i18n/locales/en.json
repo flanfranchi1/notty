@@ -114,5 +114,9 @@
   "note.tags_label": "Tagged as",
   "sidebar.tags_heading": "Tags",
   "tags.page_title": "Notes tagged",
-  "tags.empty_state": "No notes with this tag."
+  "tags.empty_state": "No notes with this tag.",
+  "dashboard.heading": "Overview",
+  "dashboard.view_inbox": "View Inbox",
+  "dashboard.your_notebooks": "Your Notebooks",
+  "dashboard.notebooks_empty": "No notebooks yet. Create one using the button above."
 }

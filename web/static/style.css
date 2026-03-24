@@ -723,8 +723,35 @@ a:hover { color: var(--c-accent-hover); text-decoration-thickness: 2px; }
   border-top: 1px solid var(--c-border);
 }
 .note-backlinks h2 { font-size: var(--t-base); font-weight: 600; margin-bottom: var(--s-2); }
-.note-backlinks ul { display: flex; flex-direction: column; gap: 0.25rem; }
-.note-backlinks li a { font-size: var(--t-sm); }
+.note-link-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.note-link-item {
+  display: block;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-size: var(--t-sm);
+  text-decoration: none;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.note-link-item:hover {
+  border-color: var(--c-accent);
+  background: var(--c-accent-dim);
+  color: var(--c-accent);
+  text-decoration: none;
+}
+.note-link-item:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+}
 
 /* ─── 27. Inline edit card (note list) ─── */
 .note-card--editing {
@@ -757,6 +784,20 @@ dialog {
     0 16px 32px -4px  color-mix(in srgb, var(--c-text) 14%, transparent);
   max-width: min(34rem, calc(100vw - var(--s-4)));
   width: 100%;
+}
+
+/* Safety net: never let closed dialogs affect document flow,
+   even if a more specific selector sets display (e.g. #cmd-palette). */
+dialog:not([open]) {
+  display: none !important;
+}
+
+dialog[open] {
+  display: block;
+}
+
+#cmd-palette[open] {
+  display: flex;
 }
 
 dialog::backdrop {
@@ -939,22 +980,33 @@ dialog::backdrop {
 .workspace-page {
   height: 100dvh;
   overflow: hidden;
-  display: flex;            /* override the base body grid */
-  flex-direction: column;
+  display: block;           /* override the base body grid */
 }
 
-/* Two-column grid: sidebar | main */
+/* Desktop app shell: fixed sidebar + fluid right wrapper */
 .workspace {
-  display: grid;
-  grid-template-columns: var(--sidebar-w) 1fr;
-  flex: 1;
-  min-height: 0;            /* prevent flex/grid overflow */
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Right side: top navbar + scrolling main content */
+.workspace-main-wrapper {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
 /* ── Left sidebar (visually first, DOM second) ── */
 .workspace-sidebar {
-  grid-column: 1;
+  order: -1;
+  width: var(--sidebar-w);
+  flex: 0 0 var(--sidebar-w);
+  height: 100%;
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
@@ -966,13 +1018,17 @@ dialog::backdrop {
 
 /* ── Right main pane (visually second, DOM first) ── */
 .workspace-main {
-  grid-column: 2;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
   overflow-y: auto;
   background: var(--c-bg);
 }
 .workspace-main-inner {
+  width: 100%;
   max-width: 52rem;
-  margin-inline: auto;
+  margin: 0 auto;
   padding: var(--s-4) var(--s-6);
 }
 
@@ -1030,18 +1086,25 @@ dialog::backdrop {
     overflow: visible;
   }
   .workspace {
-    grid-template-columns: 1fr;
-    flex: auto;
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+  .workspace-main-wrapper {
+    height: auto;
     overflow: visible;
   }
   .workspace-sidebar,
   .workspace-main {
-    grid-column: 1;
+    width: auto;
+    flex: none;
+    height: auto;
     overflow-y: visible;
   }
-  .workspace-main  { grid-row: 1; }
   .workspace-sidebar {
-    grid-row: 2;
+    order: 0;
+  }
+  .workspace-sidebar {
     border-right: none;
     border-top: 1px solid var(--c-border);
   }
@@ -1565,4 +1628,50 @@ dialog::backdrop {
 .sidebar-tags__list a[aria-current="page"] {
   color: var(--c-accent);
   font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════════════
+   33. Root Dashboard
+   ─────────────────────────────────────────────────── */
+
+.dashboard-card__meta {
+  color: var(--c-text);
+  font-size: var(--t-sm);
+  margin-bottom: var(--s-3);
+}
+
+.dashboard-empty {
+  color: var(--c-muted);
+  font-size: var(--t-sm);
+  margin-bottom: var(--s-3);
+}
+
+.dashboard-notebooks {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--s-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.dashboard-notebooks a {
+  display: block;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  color: var(--c-text);
+  font-weight: 500;
+  text-decoration: none;
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.dashboard-notebooks a:hover {
+  border-color: var(--c-accent);
+  color: var(--c-accent);
+}
+
+.dashboard-notebooks a:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
 }

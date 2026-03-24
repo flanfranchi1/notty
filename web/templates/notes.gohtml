@@ -10,15 +10,16 @@
   data-msg-editing="{{index .T "note.editing_mode"}}"
   data-msg-list-updated="{{index .T "notes.list_updated"}}">
 
-  {{template "site-header" .}}
-  {{template "status-region" .}}
-
   {{/* ── Dialogs — rendered in the DOM but hidden until opened ── */}}
   {{template "dialog-new-note" .}}
   {{template "dialog-new-notebook" .}}
   {{template "dialog-command-palette" .}}
 
   <div class="workspace">
+
+    <div class="workspace-main-wrapper">
+      {{template "site-header" .}}
+      {{template "status-region" .}}
 
     <!--
       Main content is rendered FIRST in the DOM so that the page's <h1>
@@ -30,7 +31,7 @@
       <div class="workspace-main-inner">
 
         <h1 class="page-heading">
-          {{if .IsInbox}}{{index .T "notes.inbox"}}{{else if .IsTagView}}{{index .T "tags.page_title"}} #{{.ActiveTag}}{{else if .Notebook}}{{.Notebook.Name}}{{else}}{{index .T "notes.heading"}}{{end}}
+          {{if .IsInbox}}{{index .T "notes.inbox"}}{{else if .IsTagView}}{{index .T "tags.page_title"}} #{{.ActiveTag}}{{else if .Notebook}}{{.Notebook.Name}}{{else}}{{index .T "dashboard.heading"}}{{end}}
         </h1>
 
         <!-- ── Search ── -->
@@ -93,7 +94,38 @@
         <hr class="divider">
         {{end}}
 
-        <!-- ── Notes list ── -->
+        {{if and (not .IsInbox) (not .IsTagView) (not .Notebook)}}
+        <!-- ── Root Dashboard ── -->
+        <div class="dashboard">
+
+          <section class="dashboard-card section-group" aria-labelledby="dash-inbox-heading">
+            <h2 id="dash-inbox-heading">{{index .T "notes.inbox"}}</h2>
+            <p class="dashboard-card__meta">
+              {{.InboxCount}} {{index .T "notes.inbox_count_aria"}}
+            </p>
+            <a href="/inbox" class="btn btn-ghost">{{index .T "dashboard.view_inbox"}}</a>
+          </section>
+
+          <hr class="divider">
+
+          <section class="dashboard-card section-group" aria-labelledby="dash-notebooks-heading">
+            <h2 id="dash-notebooks-heading">{{index .T "dashboard.your_notebooks"}}</h2>
+            {{if .Notebooks}}
+            <ul class="dashboard-notebooks" role="list">
+              {{range .Notebooks}}
+              <li>
+                <a href="/notebooks/{{.ID}}">{{.Name}}</a>
+              </li>
+              {{end}}
+            </ul>
+            {{else}}
+            <p class="dashboard-empty">{{index .T "dashboard.notebooks_empty"}}</p>
+            {{end}}
+          </section>
+
+        </div>
+        {{else}}
+        <!-- ── Contextual Notes list (Inbox / Tag / Notebook) ── -->
         <section aria-labelledby="notes-list-heading">
           <h2 id="notes-list-heading">
             {{if .IsInbox}}{{index .T "notes.inbox"}}{{else if .IsTagView}}#{{.ActiveTag}}{{else}}{{index .T "notes.all_notes"}}{{end}}
@@ -108,136 +140,14 @@
           <p>{{if .IsInbox}}{{index .T "notes.inbox_empty"}}{{else if .IsTagView}}{{index .T "tags.empty_state"}}{{else}}{{index .T "notes.empty_state"}}{{end}}</p>
           {{end}}
         </section>
+        {{end}}
 
       </div><!-- /.workspace-main-inner -->
     </main><!-- /#main-content -->
 
-    <!--
-      Sidebar: rendered SECOND in the DOM (after main) so heading order
-      is correct, but placed visually in column 1 via `grid-column: 1`.
+    </div><!-- /.workspace-main-wrapper -->
 
-      The "New Note" and "New Notebook" forms have been replaced by
-      placeholder <button> elements.  They are wired to modals in a
-      future iteration; for now they carry proper semantics, accessible
-      labels, and high-contrast focus states (.sidebar-btn).
-    -->
-    <nav class="workspace-sidebar" aria-label="{{index .T "nav.main_label"}}">
-
-      <!-- ── Action buttons ── -->
-      <div class="sidebar-actions">
-        <button id="btn-new-note"
-                type="button" class="btn btn-primary sidebar-btn"
-                data-open-dialog="dlg-new-note"
-                aria-label="{{index .T "notes.new_note"}}">
-          <svg aria-hidden="true" focusable="false"
-               viewBox="0 0 20 20" fill="none" width="1em" height="1em">
-            <path d="M10 4v12M4 10h12"
-                  stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-          </svg>
-          {{index .T "notes.new_note"}}
-        </button>
-        <button id="btn-new-notebook"
-                type="button" class="btn btn-ghost sidebar-btn"
-                data-open-dialog="dlg-new-notebook"
-                aria-label="{{index .T "notes.new_notebook"}}">
-          <svg aria-hidden="true" focusable="false"
-               viewBox="0 0 20 20" fill="none" width="1em" height="1em">
-            <path d="M10 4v12M4 10h12"
-                  stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-          </svg>
-          {{index .T "notes.new_notebook"}}
-        </button>
-      </div>
-
-      {{/*
-        ── Inbox link (permanently pinned above notebooks) ─────────────
-        Notes with no notebook_id land here — a frictionless capture
-        destination.  The badge shows the count of unassigned notes;
-        it is hidden (aria-hidden) when the count is zero to avoid
-        announcing an empty badge to screen readers.
-        aria-current="page" is set when the user is viewing /inbox.
-      */}}
-      <div class="sidebar-inbox">
-        <a href="/inbox"
-           class="sidebar-inbox-link"
-           {{if .IsInbox}}aria-current="page"{{end}}
-           aria-label="{{index .T "notes.inbox_aria"}}">
-          {{/* Inbox tray icon */}}
-          <svg class="sidebar-inbox-icon" aria-hidden="true" focusable="false"
-               viewBox="0 0 20 20" fill="none" width="1.1em" height="1.1em">
-            <rect x="2" y="12" width="16" height="6" rx="1"
-                  stroke="currentColor" stroke-width="1.5"/>
-            <path d="M2 12l3-7h10l3 7"
-                  stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-            <path d="M7 15.5h6"
-                  stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
-          <span class="sidebar-inbox-label">{{index .T "notes.inbox"}}</span>
-          {{if .InboxCount}}
-          <span class="inbox-badge"
-                aria-label="{{.InboxCount}} {{index .T "notes.inbox_count_aria"}}">
-            {{.InboxCount}}
-          </span>
-          {{end}}
-        </a>
-      </div><!-- /.sidebar-inbox -->
-
-      <!-- ── Navigate section: All Notes + Notebooks ── -->
-      <section class="sidebar-section" aria-labelledby="notebooks-heading">
-        <h2 class="sidebar-heading" id="notebooks-heading">{{index .T "notes.notebooks_heading"}}</h2>
-        <ul class="notebook-list" role="list">
-          <li>
-            <a href="/notes"
-               {{if and (not .IsInbox) (not .Notebook)}}aria-current="page"{{end}}>
-              {{index .T "notes.all_notes"}}
-            </a>
-          </li>
-          {{range .Notebooks}}
-          <li class="notebook-list__item">
-            <a href="/notebooks/{{.ID}}"
-               {{if and $.Notebook (eq $.Notebook.ID .ID)}}aria-current="page"{{end}}>
-              {{.Name}}
-            </a>
-            {{/*
-              Dynamic ToC: rendered only when this notebook IS the active one
-              AND the notebook has an Index Note with at least one heading.
-              The anchor hrefs target headings in the rendered Index Note whose
-              id attributes were injected by addHeadingIDs in the Go renderer.
-              Level-2 headings (##) are flush; level-3 (###) are indented.
-            */}}
-            {{if and $.Notebook (eq $.Notebook.ID .ID) $.ToCEntries}}
-            <ul class="sidebar-toc" role="list"
-                aria-label="{{index $.T "notebook.toc_heading"}}">
-              {{range $.ToCEntries}}
-              <li class="sidebar-toc__item sidebar-toc__item--h{{.Level}}">
-                <a href="#{{.ID}}">{{.Text}}</a>
-              </li>
-              {{end}}
-            </ul>
-            {{end}}
-          </li>
-          {{end}}
-        </ul>
-      </section>
-
-      {{if .AllTags}}
-      <!-- ── Tags section ── -->
-      <section class="sidebar-section sidebar-tags" aria-labelledby="tags-section-heading">
-        <details {{if .IsTagView}}open{{end}}>
-          <summary class="sidebar-heading" id="tags-section-heading">{{index .T "sidebar.tags_heading"}}</summary>
-          <ul class="sidebar-tags__list" role="list">
-            {{range .AllTags}}
-            <li>
-              <a href="/tags/{{.}}"
-                 {{if and $.IsTagView (eq $.ActiveTag .)}}aria-current="page"{{end}}>#{{.}}</a>
-            </li>
-            {{end}}
-          </ul>
-        </details>
-      </section>
-      {{end}}
-
-    </nav><!-- /.workspace-sidebar -->
+    {{template "workspace-sidebar" .}}
 
   </div><!-- /.workspace -->
 

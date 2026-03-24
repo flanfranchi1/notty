@@ -6,55 +6,45 @@
   <title>{{.Title}} — notty</title>
   {{template "head-assets" .}}
 </head>
-<!--
-  note-page — full-height workspace that lets #note-display-area scroll
-  independently while the site-header and note-topbar stay fixed.
-
-  Body layout (flex column, 100dvh):
-    <header>  site-header  (sticky, flex-shrink: 0)
-    <main>    note-workspace  (flex: 1, flex column, overflow: hidden)
-      .note-topbar          (breadcrumb bar, flex-shrink: 0)
-      #note-display-area    (flex: 1, overflow-y: auto)
--->
-<body class="note-page"
+<body class="workspace-page"
       data-msg-editing="{{index .T "note.editing_mode"}}"
       data-msg-viewing="{{index .T "note.view_mode"}}">
-  {{template "site-header" .}}
+  {{template "dialog-new-note" .}}
+  {{template "dialog-new-notebook" .}}
+  {{template "dialog-command-palette" .}}
 
-  <div id="system-status" role="status" aria-live="polite" aria-atomic="true" class="sr-only"></div>
+  <div class="workspace">
+    <div class="workspace-main-wrapper">
+      {{template "site-header" .}}
+      {{template "status-region" .}}
 
-  <main id="main-content" class="note-workspace">
-    <!-- Breadcrumb topbar — always visible above the scrollable note area -->
-    <div class="note-topbar">
-      <nav class="breadcrumb" aria-label="{{index .T "nav.breadcrumb_label"}}">
-        <a href="/notes">← {{index .T "notes.all_notes"}}</a>
-        <span aria-hidden="true">/</span>
-        <span aria-current="page" id="note-page-title">{{.Title}}</span>
-      </nav>
+      <main id="main-content" class="workspace-main note-workspace">
+        <div class="note-topbar">
+          <nav class="breadcrumb" aria-label="{{index .T "nav.breadcrumb_label"}}">
+            <a href="/notes">← {{index .T "notes.all_notes"}}</a>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page" id="note-page-title">{{.Title}}</span>
+          </nav>
+        </div>
+
+        <div id="note-display-area">
+          {{template "note_view_fragment" .}}
+        </div>
+      </main>
     </div>
 
-    <!-- The note body — switches between view and edit mode via HTMX -->
-    <div id="note-display-area">
-      {{template "note_view_fragment" .}}
-    </div>
-  </main>
+    {{template "workspace-sidebar" .}}
+  </div>
 
-  <!--
-    Focus management after HTMX swaps.
-    editor.js focusses #editor-textarea when the edit fragment loads;
-    we only need to handle the return to view mode here.
-  -->
   <script>
     document.body.addEventListener('htmx:afterSwap', function (ev) {
       if (ev.detail.target.id !== 'note-display-area') return;
       var statusEl = document.getElementById('system-status');
       setTimeout(function () {
-        // Edit mode: editor.js handles focus.
         if (document.getElementById('editor-textarea')) {
           if (statusEl) statusEl.textContent = document.body.dataset.msgEditing;
           return;
         }
-        // View mode: focus the edit button so focus is not lost.
         var editBtn = document.getElementById('edit-button');
         if (editBtn) {
           editBtn.focus();

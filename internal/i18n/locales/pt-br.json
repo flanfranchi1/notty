@@ -114,5 +114,9 @@
   "note.tags_label": "Marcado como",
   "sidebar.tags_heading": "Tags",
   "tags.page_title": "Notas marcadas",
-  "tags.empty_state": "Nenhuma nota com esta tag."
+  "tags.empty_state": "Nenhuma nota com esta tag.",
+  "dashboard.heading": "Visão Geral",
+  "dashboard.view_inbox": "Ver Caixa de Entrada",
+  "dashboard.your_notebooks": "Seus Cadernos",
+  "dashboard.notebooks_empty": "Nenhum caderno ainda. Crie um usando o botão acima."
 }

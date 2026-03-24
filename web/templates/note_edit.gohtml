@@ -3,75 +3,54 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Editing: {{.Title}} — notty</title>
+  <title>{{index .T "note.editing_prefix"}} {{.Title}} — notty</title>
   {{template "head-assets" .}}
 </head>
-<body>
-  {{template "site-header" .}}
-  <div id="system-status" role="status" aria-live="polite" aria-atomic="true" class="sr-only"></div>
+<body class="workspace-page"
+      data-msg-editing="{{index .T "note.editing_mode"}}"
+      data-msg-viewing="{{index .T "note.view_mode"}}">
+  {{template "dialog-new-note" .}}
+  {{template "dialog-new-notebook" .}}
+  {{template "dialog-command-palette" .}}
 
-  <main id="main-content" class="page-wrapper">
-    <nav class="breadcrumb" aria-label="Breadcrumb">
-      <a href="/notes">← All notes</a>
-      <span aria-hidden="true">/</span>
-      <span aria-current="page">{{.Title}}</span>
-    </nav>
+  <div class="workspace">
+    <div class="workspace-main-wrapper">
+      {{template "site-header" .}}
+      {{template "status-region" .}}
 
-    <form method="post" action="/notes/view/update" aria-labelledby="edit-heading" novalidate>
-      <h1 id="edit-heading">Editing: {{.Title}}</h1>
+      <main id="main-content" class="workspace-main note-workspace">
+        <div class="note-topbar">
+          <nav class="breadcrumb" aria-label="{{index .T "nav.breadcrumb_label"}}">
+            <a href="/notes">← {{index .T "notes.all_notes"}}</a>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page" id="note-page-title">{{.Title}}</span>
+          </nav>
+        </div>
 
-      <input type="hidden" name="original_title" value="{{.Title}}">
+        <div id="note-display-area">
+          {{template "note_edit_fragment" .}}
+        </div>
+      </main>
+    </div>
 
-      <div class="form-group">
-        <label for="edit-title">Title</label>
-        <input id="edit-title" name="title" type="text"
-               value="{{.Title}}" required
-               aria-describedby="edit-title-error">
-        <div id="edit-title-error" class="form-error"
-             role="alert" aria-live="assertive">{{.TitleError}}</div>
-      </div>
-
-      <div class="form-group">
-        <label for="edit-notebook-select">Notebook</label>
-        <select id="edit-notebook-select" name="notebook_id">
-          <option value="">None</option>
-          {{range .Notebooks}}
-          <option value="{{.ID}}" {{if eq .ID $.NotebookID}}selected{{end}}>{{.Name}}</option>
-          {{end}}
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label for="note-content-textarea">
-          Content <span class="sr-only">(Markdown supported)</span>
-        </label>
-        <span id="markdown-hint" class="sr-only">
-          Use Markdown syntax. Wiki-links use [[Note Title]] notation.
-        </span>
-        <textarea id="note-content-textarea"
-                  name="content"
-                  rows="24"
-                  required
-                  class="editor-textarea"
-                  aria-describedby="markdown-hint edit-content-error">{{.Raw}}</textarea>
-        <span class="form-hint" aria-hidden="true">Markdown · link notes with [[Title]]</span>
-        <div id="edit-content-error" class="form-error"
-             role="alert" aria-live="assertive">{{.ContentError}}</div>
-      </div>
-
-      <div class="form-actions">
-        <button type="submit" class="btn btn-primary">Save changes</button>
-        <a href="/notes" class="btn btn-ghost">Cancel</a>
-      </div>
-    </form>
-  </main>
-
-  {{template "site-footer" .}}
+    {{template "workspace-sidebar" .}}
+  </div>
 
   <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      var textarea = document.getElementById('note-content-textarea');
-      if (textarea) textarea.focus();
+    document.body.addEventListener('htmx:afterSwap', function (ev) {
+      if (ev.detail.target.id !== 'note-display-area') return;
+      var statusEl = document.getElementById('system-status');
+      setTimeout(function () {
+        if (document.getElementById('editor-textarea')) {
+          if (statusEl) statusEl.textContent = document.body.dataset.msgEditing;
+          return;
+        }
+        var editBtn = document.getElementById('edit-button');
+        if (editBtn) {
+          editBtn.focus();
+          if (statusEl) statusEl.textContent = document.body.dataset.msgViewing;
+        }
+      }, 80);
     });
   </script>
 </body>

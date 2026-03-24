@@ -23,9 +23,9 @@
   {{if .Backlinks}}
   <aside class="note-backlinks" aria-labelledby="backlinks-heading">
     <h2 id="backlinks-heading">{{index .T "note.backlinks_heading"}}</h2>
-    <ul role="list">
+    <ul class="note-link-list" role="list">
       {{range .Backlinks}}
-      <li><a href="/notes/{{.ID}}">{{.Title}}</a></li>
+      <li><a class="note-link-item" href="/notes/{{.ID}}">{{.Title}}</a></li>
       {{end}}
     </ul>
   </aside>
