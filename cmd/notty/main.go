@@ -22,7 +22,7 @@ type Config struct {
 func loadConfig() Config {
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = ":8080"
+		port = "0.0.0.0:8080"
 	}
 	storagePath := os.Getenv("STORAGE_PATH")
 	if storagePath == "" {
