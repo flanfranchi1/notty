@@ -56,6 +56,13 @@ func main() {
 		log.Fatalf("failed to load i18n bundle: %v", err)
 	}
 
+	seeded, skipped, err := mgr.BackfillTutorialShowcase(systemDB, bundle.Translations("en"))
+	if err != nil {
+		log.Printf("tutorial backfill failed: %v", err)
+	} else {
+		log.Printf("tutorial backfill completed: seeded=%d skipped=%d", seeded, skipped)
+	}
+
 	// dict builds a map[string]interface{} from alternating key/value pairs.
 	// This is required so that templates can forward both note data AND the
 	// outer translation map ($.T) when calling sub-templates from inside a

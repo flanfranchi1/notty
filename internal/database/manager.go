@@ -15,6 +15,8 @@ import (
 
 var ftsSanitizeRegexp = regexp.MustCompile(`[^\p{L}\p{N}\s]+`)
 
+const tutorialBackfillSeedKey = "tutorial_showcase_backfill_v1"
+
 type DatabaseManager struct {
 	SystemDBPath string
 	UserDBDir    string
@@ -450,6 +452,69 @@ func (m *DatabaseManager) GetUserByEmail(db *sql.DB, email string) (*User, error
 	return user, nil
 }
 
+func (m *DatabaseManager) ListSystemUserIDs(db *sql.DB) ([]string, error) {
+	rows, err := db.Query(`SELECT id FROM users;`)
+	if err != nil {
+		return nil, fmt.Errorf("unable to list system users: %w", err)
+	}
+	defer rows.Close()
+
+	ids := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("unable to scan system user id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+func (m *DatabaseManager) ensureSeedMetaTable(db *sql.DB) error {
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS seed_meta (
+		seed_key TEXT PRIMARY KEY,
+		seed_value TEXT NOT NULL,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);`)
+	if err != nil {
+		return fmt.Errorf("unable to ensure seed_meta table: %w", err)
+	}
+	return nil
+}
+
+func (m *DatabaseManager) seedMetaExists(db *sql.DB, key string) (bool, error) {
+	var exists int
+	err := db.QueryRow(`SELECT COUNT(1) FROM seed_meta WHERE seed_key = ?;`, key).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("unable to check seed_meta key %q: %w", key, err)
+	}
+	return exists > 0, nil
+}
+
+func (m *DatabaseManager) setSeedMeta(db *sql.DB, key, value string) error {
+	_, err := db.Exec(
+		`INSERT INTO seed_meta(seed_key, seed_value, updated_at)
+		 VALUES (?, ?, CURRENT_TIMESTAMP)
+		 ON CONFLICT(seed_key)
+		 DO UPDATE SET seed_value = excluded.seed_value, updated_at = CURRENT_TIMESTAMP;`,
+		key,
+		value,
+	)
+	if err != nil {
+		return fmt.Errorf("unable to set seed_meta key %q: %w", key, err)
+	}
+	return nil
+}
+
+func (m *DatabaseManager) hasTutorialNotes(db *sql.DB) (bool, error) {
+	var count int
+	err := db.QueryRow(`SELECT COUNT(1) FROM note_tags WHERE tag = 'tutorial';`).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("unable to detect tutorial notes: %w", err)
+	}
+	return count > 0, nil
+}
+
 func (m *DatabaseManager) UpdateUserPassword(db *sql.DB, userID string, newPasswordHash string) error {
 	_, err := db.Exec(`UPDATE users SET password_hash = ? WHERE id = ?;`, newPasswordHash, userID)
 	if err != nil {
@@ -710,4 +775,77 @@ func (m *DatabaseManager) SeedTutorial(db *sql.DB, translations map[string]strin
 	}
 
 	return nil
+}
+
+// BackfillTutorialShowcase seeds the tutorial showcase for existing users who
+// do not have tutorial-tagged notes yet.
+//
+// Idempotency rules:
+//   - each user DB gets a seed marker in seed_meta using tutorialBackfillSeedKey
+//   - reruns skip already-processed user DBs
+//
+// Users that already have tutorial notes are marked as skipped to avoid adding
+// duplicate tutorial notebooks into accounts that likely already received one.
+func (m *DatabaseManager) BackfillTutorialShowcase(systemDB *sql.DB, translations map[string]string) (int, int, error) {
+	userIDs, err := m.ListSystemUserIDs(systemDB)
+	if err != nil {
+		return 0, 0, fmt.Errorf("BackfillTutorialShowcase: list users: %w", err)
+	}
+
+	seeded := 0
+	skipped := 0
+
+	for _, userID := range userIDs {
+		userDB, err := m.OpenUserDB(userID)
+		if err != nil {
+			return seeded, skipped, fmt.Errorf("BackfillTutorialShowcase: open user db %s: %w", userID, err)
+		}
+
+		if err := m.ensureSeedMetaTable(userDB); err != nil {
+			userDB.Close()
+			return seeded, skipped, fmt.Errorf("BackfillTutorialShowcase: ensure seed_meta for %s: %w", userID, err)
+		}
+
+		alreadyProcessed, err := m.seedMetaExists(userDB, tutorialBackfillSeedKey)
+		if err != nil {
+			userDB.Close()
+			return seeded, skipped, fmt.Errorf("BackfillTutorialShowcase: check seed marker for %s: %w", userID, err)
+		}
+		if alreadyProcessed {
+			skipped++
+			userDB.Close()
+			continue
+		}
+
+		hasTutorial, err := m.hasTutorialNotes(userDB)
+		if err != nil {
+			userDB.Close()
+			return seeded, skipped, fmt.Errorf("BackfillTutorialShowcase: detect tutorial for %s: %w", userID, err)
+		}
+
+		if hasTutorial {
+			if err := m.setSeedMeta(userDB, tutorialBackfillSeedKey, "already_had_tutorial"); err != nil {
+				userDB.Close()
+				return seeded, skipped, fmt.Errorf("BackfillTutorialShowcase: set skip marker for %s: %w", userID, err)
+			}
+			skipped++
+			userDB.Close()
+			continue
+		}
+
+		if err := m.SeedTutorial(userDB, translations); err != nil {
+			userDB.Close()
+			return seeded, skipped, fmt.Errorf("BackfillTutorialShowcase: seed tutorial for %s: %w", userID, err)
+		}
+
+		if err := m.setSeedMeta(userDB, tutorialBackfillSeedKey, "seeded"); err != nil {
+			userDB.Close()
+			return seeded, skipped, fmt.Errorf("BackfillTutorialShowcase: set seed marker for %s: %w", userID, err)
+		}
+
+		seeded++
+		userDB.Close()
+	}
+
+	return seeded, skipped, nil
 }

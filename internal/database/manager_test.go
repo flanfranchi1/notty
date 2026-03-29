@@ -684,3 +684,89 @@ func TestGetNotebookIndexNote(t *testing.T) {
 		t.Errorf("Expected index note p1 after adding index note for different notebook, got %v", idx)
 	}
 }
+
+func TestBackfillTutorialShowcase_SeedsMissingAndSkipsExisting(t *testing.T) {
+	base := t.TempDir()
+	mgr := NewManager(base)
+
+	systemDB, err := mgr.InitSystemDB()
+	if err != nil {
+		t.Fatalf("InitSystemDB: %v", err)
+	}
+	defer systemDB.Close()
+
+	userWithTutorial := User{ID: "u-has", Email: "has@example.com", PasswordHash: "x"}
+	userWithoutTutorial := User{ID: "u-miss", Email: "miss@example.com", PasswordHash: "y"}
+
+	if err := mgr.CreateSystemUser(systemDB, userWithTutorial); err != nil {
+		t.Fatalf("CreateSystemUser userWithTutorial: %v", err)
+	}
+	if err := mgr.CreateSystemUser(systemDB, userWithoutTutorial); err != nil {
+		t.Fatalf("CreateSystemUser userWithoutTutorial: %v", err)
+	}
+
+	if _, err := mgr.CreateUserDB(userWithTutorial.ID); err != nil {
+		t.Fatalf("CreateUserDB userWithTutorial: %v", err)
+	}
+	if _, err := mgr.CreateUserDB(userWithoutTutorial.ID); err != nil {
+		t.Fatalf("CreateUserDB userWithoutTutorial: %v", err)
+	}
+
+	// Mark userWithTutorial as already having tutorial content.
+	dbHas, err := mgr.OpenUserDB(userWithTutorial.ID)
+	if err != nil {
+		t.Fatalf("OpenUserDB userWithTutorial: %v", err)
+	}
+	if err := mgr.CreateNote(dbHas, Note{ID: "n1", Title: "Legacy Tutorial", Content: "#tutorial"}); err != nil {
+		dbHas.Close()
+		t.Fatalf("CreateNote legacy tutorial: %v", err)
+	}
+	if err := mgr.InsertNoteTags(dbHas, "n1", []string{"tutorial"}); err != nil {
+		dbHas.Close()
+		t.Fatalf("InsertNoteTags legacy tutorial: %v", err)
+	}
+	dbHas.Close()
+
+	translations := map[string]string{
+		"tutorial.notebook.name":       "Notty Showcase",
+		"tutorial.note1.title":         "Start Here: Markdown 80/20 Playground",
+		"tutorial.note2.title":         "Connect Ideas with Wiki Links",
+		"tutorial.note3.title":         "Find Anything with Search and Tags",
+		"tutorial.markdown.formatting": "# Start Here: Markdown 80/20 Playground\n#tutorial",
+		"tutorial.markdown.advanced":   "# Connect Ideas with Wiki Links\n#tutorial",
+		"tutorial.markdown.wikilinks":  "# Find Anything with Search and Tags\n#tutorial",
+	}
+
+	seeded, skipped, err := mgr.BackfillTutorialShowcase(systemDB, translations)
+	if err != nil {
+		t.Fatalf("BackfillTutorialShowcase first run: %v", err)
+	}
+	if seeded != 1 || skipped != 1 {
+		t.Fatalf("first run counts: seeded=%d skipped=%d, want seeded=1 skipped=1", seeded, skipped)
+	}
+
+	// User without tutorial should now have tutorial-tagged content.
+	dbMiss, err := mgr.OpenUserDB(userWithoutTutorial.ID)
+	if err != nil {
+		t.Fatalf("OpenUserDB userWithoutTutorial: %v", err)
+	}
+	hasTutorial, err := mgr.hasTutorialNotes(dbMiss)
+	if err != nil {
+		dbMiss.Close()
+		t.Fatalf("hasTutorialNotes userWithoutTutorial: %v", err)
+	}
+	if !hasTutorial {
+		dbMiss.Close()
+		t.Fatal("expected tutorial notes for userWithoutTutorial after backfill")
+	}
+	dbMiss.Close()
+
+	// Second run should be idempotent because seed markers are present.
+	seeded2, skipped2, err := mgr.BackfillTutorialShowcase(systemDB, translations)
+	if err != nil {
+		t.Fatalf("BackfillTutorialShowcase second run: %v", err)
+	}
+	if seeded2 != 0 || skipped2 != 2 {
+		t.Fatalf("second run counts: seeded=%d skipped=%d, want seeded=0 skipped=2", seeded2, skipped2)
+	}
+}
